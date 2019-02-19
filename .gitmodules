@@ -4,6 +4,3 @@
 [submodule "buildbot-dapp.ci"]
 	path = buildbot-dapp.ci
 	url = git@github.com:dapphub/buildbot-dapp.ci.git
-[submodule "nixpkgs"]
-	path = nixpkgs
-	url = git@github.com:livnev/nixpkgs.git

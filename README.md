@@ -12,14 +12,6 @@ $ grep FILLME *
 
 ## deploying
 
-Firstly, `nixops` is currently broken in `nixpkgs` master, in two different ways: [here](https://github.com/NixOS/nixops/issues/1086) and [here](https://github.com/NixOS/nixpkgs/issues/50419). Hence I'm using a custom `nixpkgs` which is provided as a submodule in this repo.
-
-Make sure the custom `nixpkgs` submodule is initialised:
-
-```sh
-$ git submodule update --init --recursive
-```
-
 ### new deployment
 
 The simplest option is to use the DigitalOcean backend, supplied in `do.nix`. For that, you just need to get an auth token and then do:
@@ -43,10 +35,10 @@ Then, create a bare-bones deployment and name it `ci-server`:
 $ nixops create ./hetzner.nix ./ci-server.nix -d ci-server
 ```
 
-Now we can deploy it, specifying the path to our custom `nixpkgs` submodule:
+Now we can deploy it:
 
 ```sh
-$ nixops deploy -d ci-server -I"nixpkgs=./nixpkgs"
+$ nixops deploy -d ci-server -I"nixpkgs=https://nixos.org/channels/nixos-19.03/nixexprs.tar.xz"
 ```
 
 That's it!
@@ -56,7 +48,7 @@ That's it!
 Edit the configuration and then run:
 
 ```sh
-$ nixops deploy -d ci-server -I"nixpkgs=./nixpkgs"
+$ nixops deploy -d ci-server -I"nixpkgs=https://nixos.org/channels/nixos-19.03/nixexprs.tar.xz"
 ```
 
 ### debugging buildbot
@@ -67,6 +59,21 @@ If something went wrong with `buildbot`, `ssh` into `root` on the deployed machi
 $ journalctl -n100 -fu buildbot-master
 $ journalctl -M worker-sisyphus -n100 -fu buildbot-worker
 $ journalctl -M worker-oedipus -n100 -fu buildbot-worker
+```
+
+### entering buildbot worker environments
+
+To enter a buildbot worker environment, run one of
+
+```sh
+$ ssh root@buildbot.dapp.ci -t "nixos-container root-login worker-oedipus"
+# ./load-klab-env.sh
+```
+to enter the environment of the `klab` builder, or
+
+```sh
+$ ssh root@buildbot.dapp.ci -t "nixos-container root-login worker-sisyphus"
+# ./load-k-dss-env.sh
 ```
 
 ### TODOs

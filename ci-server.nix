@@ -1,49 +1,34 @@
 let
-  inherit (import <nixpkgs> {}) fetchFromGitHub;
-  nixpkgs = fetchFromGitHub {
-    owner  = "livnev";
-    repo   = "nixpkgs";
-    rev    = "3a272796113b335bb84c4ae279805ac6ccd5af89";
-    sha256 = "04vvignvld1qzm8w3cr5fn7zjndhgyf1zndfhdgwfzsk7xlbxmpn";
-  };
-  nixpkgs-for-dapp = builtins.fetchTarball {
-    name = "nixpkgs-release-18.09";
-    # pin the current release-18.09 commit
-    url = "https://github.com/nixos/nixpkgs/archive/185ab27b8a2ff2c7188bc29d056e46b25dd56218.tar.gz";
-    sha256 = "0bflmi7w3gas9q8wwwwbnz79nkdmiv2c1bpfc3xyplwy8npayxh2";
-  };
-  pkgs = import nixpkgs {};
-  pkgs-for-dapp = import nixpkgs-for-dapp {
-    overlays = [
-      (import (builtins.fetchGit {
-        url = "git@github.com:dapphub/dapptools.git";
-        rev = "d8e78aedaaeda323fb583ea52bef250634399e6a";
-      } + /overlay.nix)) ];
+  dapptools_git = builtins.fetchGit {
+    url = "git@github.com:dapphub/dapptools.git";
+    rev = "138946e3323376d7e3acf7536b094b0108b81636";
   };
 
-  my-ssh-key    = (import ./keys.nix).my-ssh-key;
+  dapptools = import (dapptools_git) {};
+
+  pkgs = import <nixpkgs> {};
+
+  my-ssh-key    = (import ./keys.nix).lev-ssh-key;
   our-keys = [ my-ssh-key ];
 
   buildbot-masterCfg       = ./master.cfg;
   buildbot-www-endpoint    = "http://127.0.0.1:8010";
   buildbot-master-endpoint = "localhost:9989";
-  buildbot-external-domain = "FILLME!";
-  reports-domain           = "FILLME!";
-  proofs-domain            = "FILLME!";
+  buildbot-external-domain = "buildbot.FILLME";
+  reports-domain           = "FILLME";
+  proofs-domain            = "proof.FILLME";
   reports-publish-dir      = "/var/publish/reports";
   proofs-publish-dir       = "/var/publish/proofs";
   klab-dir                 = "/home/bbworker/klab";
+  klab-persistent-dir      = "/home/bbworker/persistent/klab_out";
 
   git-ci = (import ./git-ci.nix { inherit pkgs; }).git_ci;
 
   worker-packages = with pkgs; [
     # required for build steps
-    bash
-    gnumake
     git
     time
-    jq
-    pkgs-for-dapp.dapp
+    dapptools.dapp
     # required for make colouring
     ncurses
     # required to fetch nixpkgs
@@ -53,6 +38,10 @@ let
     # fancy git utilities
     git-ci
   ];
+  load-klab-env = pkgs.writeShellScriptBin "load-klab-env" ''
+    exec su -l bbworker -c 'cd ~/worker/klab/build && \
+    NIX_PATH=nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixos-19.03.tar.gz nix-shell'
+  '';
 in
 {
   ci-machine = { config, pkgs, ... }: {
@@ -63,9 +52,9 @@ in
 
     users.mutableUsers = false;
 
-    users.extraUsers.root.openssh.authorizedKeys.keys = our-keys;
+    users.users.root.openssh.authorizedKeys.keys = our-keys;
 
-    users.extraUsers.FILLME = {
+    users.users.FILLME = {
       isNormalUser = true;
       uid = 1000;
       createHome = true;
@@ -75,13 +64,17 @@ in
 
     security.sudo.wheelNeedsPassword = false;
 
-    nix.gc.automatic = true;
+    nix.gc.automatic = false;
 
     environment.systemPackages = with pkgs; [
       htop
       killall
       pstree
+      neovim
+      git
     ];
+
+    programs.mosh.enable = true;
 
     services.buildbot-master = {
       enable = true;
@@ -97,10 +90,12 @@ in
       ];
     };
     systemd.services.buildbot-master.environment = {
+      DAPPTOOLS                = dapptools_git.outPath;
       BUILDBOT_EXTERNAL_DOMAIN = buildbot-external-domain;
       KLAB_WEBPROOF_DIR        = proofs-publish-dir;
       KLAB_REPORT_DIR          = reports-publish-dir;
-      KLAB_DIR                 = klab-dir;
+      KLAB_PATH                = klab-dir;
+      KLAB_PERSISTENT_DIR      = klab-persistent-dir;
     };
 
     system.activationScripts.publish-dirs = ''
@@ -110,7 +105,7 @@ in
       chmod 777 ${proofs-publish-dir}
     '';
 
-    containers.worker-sisyphus = {
+    containers.worker-FILLME = {
       autoStart = true;
       bindMounts = {
         "/var/publish/reports" = {
@@ -126,8 +121,8 @@ in
       {
         services.buildbot-worker = {
           enable = true;
-          workerUser = "sisyphus";
-          workerPass = "FILLME!";
+          workerUser = "FILLME";
+          workerPass = "FILLME";
           masterUrl = buildbot-master-endpoint;
           packages = worker-packages;
         };
@@ -138,34 +133,7 @@ in
             systemd.services.buildbot-worker.preStart = let git = "${pkgs.git}/bin/git"; in ''
               (cd ${klab-dir} && ${git} status) || (${git} clone https://github.com/dapphub/klab.git ${klab-dir} --recursive)
         '';
-      };
-    };
-
-    containers.worker-oedipus = {
-      autoStart = true;
-      bindMounts = {
-        "/var/publish/reports" = {
-          hostPath   = reports-publish-dir;
-          isReadOnly = false;
-        };
-        "/var/publish/proofs"  = {
-          hostPath   = proofs-publish-dir;
-          isReadOnly = false;
-        };
-      };
-      config = { config, pkgs, ... }:
-      {
-        services.buildbot-worker = {
-          enable = true;
-          workerUser = "oedipus";
-          workerPass = "FILLME!";
-          masterUrl = buildbot-master-endpoint;
-          packages = worker-packages;
-        };
-        programs.ssh.extraConfig = ''
-          Host github.com
-              StrictHostKeyChecking no
-        '';
+        environment.systemPackages = [ load-klab-env ];
       };
     };
 
@@ -218,9 +186,9 @@ in
     };
 
     security.acme.certs = {
-      "${buildbot-external-domain}".email = "FILLME!";
-      "${reports-domain}".email           = "FILLME!";
-      "${proofs-domain}".email            = "FILLME!";
+      "${buildbot-external-domain}".email = "FILLME";
+      "${reports-domain}".email           = "FILLME";
+      "${proofs-domain}".email            = "FILLME";
     };
   };
 }

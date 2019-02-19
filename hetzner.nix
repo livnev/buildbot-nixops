@@ -1,5 +1,5 @@
 let
-  server-ip = "FILLME!"; in
+  server-ip = "FILLME"; in
 {
   network.description = "Hetzner dedicated server";
 
@@ -20,5 +20,9 @@ let
 
       raid / --level=1 --device=md0 --fstype=ext4 --label=root raid.1 raid.2
     '';
+
+    swapDevices = [
+      {device = "/swapfile"; size = 10000;}
+    ];
   };
 }
