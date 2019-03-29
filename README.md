@@ -2,6 +2,14 @@
 
 This is a nix derivation for deploying a [buildbot](https://buildbot.net/) CI server using [nixops](https://nixos.org/nixops/). It comes preinstalled with some useful utility commands from [git-ci](https://github.com/ehildenb/git-ci).
 
+## configure
+
+First, search this repo for `FILLME` and fill in all fields:
+
+```sh
+$ grep FILLME *
+```
+
 ## deploying
 
 Firstly, `nixops` is currently broken in `nixpkgs` master, in two different ways: [here](https://github.com/NixOS/nixops/issues/1086) and [here](https://github.com/NixOS/nixpkgs/issues/50419). Hence I'm using a custom `nixpkgs` which is provided as a submodule in this repo.
