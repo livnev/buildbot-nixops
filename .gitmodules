@@ -1,6 +1,0 @@
-[submodule "git-ci"]
-	path = git-ci
-	url = git@github.com:dapphub/git-ci.git
-[submodule "buildbot-dapp.ci"]
-	path = buildbot-dapp.ci
-	url = git@github.com:dapphub/buildbot-dapp.ci.git
